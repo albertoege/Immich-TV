@@ -1,5 +1,7 @@
 # Immich Android TV
 
+> **📖 Documentación en Español:** Para una guía completa de desarrollo en Windows 11, consulta [DOCUMENTACION-ES.md](./DOCUMENTACION-ES.md)
+
 Immich is a self hosted backup solution for photos and videos. Current features include:
 
 - Upload and view videos and photos
