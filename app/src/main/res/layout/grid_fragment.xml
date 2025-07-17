@@ -12,21 +12,78 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" >
 
-        <FrameLayout
+        <LinearLayout
+            android:id="@+id/grid_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- Navigation Controls Row -->
+            <LinearLayout
+                android:id="@+id/navigation_controls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:visibility="visible"
+                android:gravity="center_vertical">
+
+                <!-- Navigation Mode Selector -->
+                <TextView
+                    android:id="@+id/navigation_mode_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Navigation Mode: "
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/navigation_mode_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Photo by Photo"
+                    android:textColor="#FFD700"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="32dp" />
+
+                <!-- Spacer to push date to the right -->
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <!-- Current Date Context -->
+                <TextView
+                    android:id="@+id/current_date_context"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:gravity="end" />
+
+            </LinearLayout>
+
+            <!-- Main Grid Content -->
+            <FrameLayout
                 android:id="@+id/browse_grid_dock"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent">
-            <ProgressBar
-                android:id="@+id/browse_progressbar"
-                android:visibility="visible"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:indeterminate="true"
-                android:theme="@style/ProgressBar"/>
-        </FrameLayout>
+                android:layout_height="0dp"
+                android:layout_weight="1">
+                
+                <ProgressBar
+                    android:id="@+id/browse_progressbar"
+                    android:visibility="visible"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:indeterminate="true"
+                    android:theme="@style/ProgressBar"/>
+            </FrameLayout>
 
-
+        </LinearLayout>
 
     </androidx.leanback.widget.BrowseFrameLayout>
 </FrameLayout>

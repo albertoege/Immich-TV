@@ -21,6 +21,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.leanback.app.BrandedSupportFragment
 import androidx.leanback.app.BrowseSupportFragment
@@ -45,6 +46,8 @@ open class GridFragment(val hideProgressBar: Boolean = false) : BrandedSupportFr
     private var mOnItemViewClickedListener: OnItemViewClickedListener? = null
     private var mSceneAfterEntranceTransition: Any? = null
     var progressBar: ProgressBar? = null
+    protected var navigationModeValue: TextView? = null
+    protected var currentDateContext: TextView? = null
     private var mSelectedPosition = -1
     private val mMainFragmentAdapter: BrowseSupportFragment.MainFragmentAdapter<Fragment> =
         object : BrowseSupportFragment.MainFragmentAdapter<Fragment>(this) {
@@ -154,6 +157,11 @@ open class GridFragment(val hideProgressBar: Boolean = false) : BrandedSupportFr
         super.onViewCreated(view, savedInstanceState)
         val gridDock: ViewGroup = view.findViewById(R.id.browse_grid_dock)
         progressBar = gridDock.findViewById(R.id.browse_progressbar)
+        
+        // Initialize navigation controls
+        navigationModeValue = view.findViewById(R.id.navigation_mode_value)
+        currentDateContext = view.findViewById(R.id.current_date_context)
+        
         if (hideProgressBar) {
             progressBar?.visibility = View.GONE
         }

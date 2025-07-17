@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import nl.giejay.android.tv.immich.ImmichApplication
 import nl.giejay.android.tv.immich.api.ApiClient
 import nl.giejay.android.tv.immich.api.ApiClientConfig
+import nl.giejay.android.tv.immich.api.model.Asset
 import nl.giejay.android.tv.immich.card.Card
 import nl.giejay.android.tv.immich.card.CardPresenterSelector
 import nl.giejay.android.tv.immich.home.HomeFragmentDirections
@@ -36,10 +37,16 @@ import nl.giejay.android.tv.immich.shared.prefs.DEBUG_MODE
 import nl.giejay.android.tv.immich.shared.prefs.DISABLE_SSL_VERIFICATION
 import nl.giejay.android.tv.immich.shared.prefs.HOST_NAME
 import nl.giejay.android.tv.immich.shared.prefs.LOAD_BACKGROUND_IMAGE
+import nl.giejay.android.tv.immich.shared.prefs.NAVIGATION_MODE
+import nl.giejay.android.tv.immich.shared.prefs.NavigationMode
 import nl.giejay.android.tv.immich.shared.prefs.PreferenceManager
 import nl.giejay.android.tv.immich.shared.util.Debouncer
 import nl.giejay.android.tv.immich.shared.viewmodel.KeyEventsViewModel
 import timber.log.Timber
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 
@@ -62,6 +69,7 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
     protected val selectionMode: Boolean
         get() = arguments?.getBoolean("selectionMode", false) ?: false
     private var currentSelectedIndex: Int = 0
+    protected var currentNavigationMode: NavigationMode = NavigationMode.PHOTO_BY_PHOTO
 
     abstract fun sortItems(items: List<ITEM>): List<ITEM>
     abstract suspend fun loadItems(
@@ -140,6 +148,7 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
                             .e("Could not load background url")
                     }
                 }
+                updateDateContext()
             }
             with(this@VerticalCardGridFragment) {
                 loadNextItemsIfNeeded(adapter.indexOf(item))
@@ -147,6 +156,164 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         }
         // fetch initial items
         fetchInitialItems()
+    }
+
+    private fun handleKeyEvent(event: KeyEvent?) {
+        when (event?.keyCode) {
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                if ((adapter.size() == 0 && allPagesLoaded) || currentSelectedIndex > 0 && (currentSelectedIndex % COLUMNS == 3 || currentSelectedIndex + 1 == adapter.size())) {
+                    openPopUpMenu()
+                } else {
+                    handleNavigationKeyEvent(event.keyCode)
+                }
+            }
+            KeyEvent.KEYCODE_DPAD_LEFT -> handleNavigationKeyEvent(event.keyCode)
+            KeyEvent.KEYCODE_DPAD_UP -> handleNavigationKeyEvent(event.keyCode)
+            KeyEvent.KEYCODE_DPAD_DOWN -> handleNavigationKeyEvent(event.keyCode)
+            KeyEvent.KEYCODE_FORWARD, KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                updateManualPositionHandler(adapter.size() - 1)
+            }
+            KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD -> {
+                updateManualPositionHandler((currentSelectedIndex - FETCH_PAGE_COUNT).coerceAtLeast(0))
+            }
+            KeyEvent.KEYCODE_MENU -> {
+                // Toggle navigation mode
+                toggleNavigationMode()
+            }
+        }
+    }
+
+    private fun handleNavigationKeyEvent(keyCode: Int) {
+        if (currentNavigationMode == NavigationMode.PHOTO_BY_PHOTO) {
+            // Let default navigation handle it
+            return
+        }
+
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> navigateByTimeMode(-1)
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> navigateByTimeMode(1)
+        }
+    }
+
+    private fun navigateByTimeMode(direction: Int) {
+        val currentAsset = getCurrentSelectedAsset() ?: return
+        val targetIndex = findTargetIndexByNavigationMode(currentAsset, direction)
+        if (targetIndex != -1 && targetIndex != currentSelectedIndex) {
+            updateManualPositionHandler(targetIndex)
+        }
+    }
+
+    private fun findTargetIndexByNavigationMode(currentAsset: ITEM, direction: Int): Int {
+        val currentDate = getCurrentAssetDate(currentAsset) ?: return -1
+        val calendar = Calendar.getInstance().apply { time = currentDate }
+        
+        when (currentNavigationMode) {
+            NavigationMode.DAY_BY_DAY -> {
+                calendar.add(Calendar.DAY_OF_YEAR, direction)
+            }
+            NavigationMode.WEEK_BY_WEEK -> {
+                calendar.add(Calendar.WEEK_OF_YEAR, direction)
+            }
+            NavigationMode.MONTH_BY_MONTH -> {
+                calendar.add(Calendar.MONTH, direction)
+            }
+            NavigationMode.YEAR_BY_YEAR -> {
+                calendar.add(Calendar.YEAR, direction)
+            }
+            else -> return -1
+        }
+        
+        val targetDate = calendar.time
+        return findClosestAssetByDate(targetDate)
+    }
+
+    private fun findClosestAssetByDate(targetDate: Date): Int {
+        var closestIndex = -1
+        var minDifference = Long.MAX_VALUE
+
+        for (i in assets.indices) {
+            val assetDate = getCurrentAssetDate(assets[i]) ?: continue
+            val difference = Math.abs(targetDate.time - assetDate.time)
+            
+            if (difference < minDifference) {
+                minDifference = difference
+                closestIndex = i
+            }
+        }
+        
+        return closestIndex
+    }
+
+    private fun getCurrentSelectedAsset(): ITEM? {
+        return if (currentSelectedIndex in 0 until assets.size) assets[currentSelectedIndex] else null
+    }
+
+    private fun getCurrentAssetDate(asset: ITEM): Date? {
+        // This needs to be implemented based on how ITEM provides date information
+        // For now, assuming ITEM is Asset type based on GenericAssetFragment usage
+        return if (asset is Asset) {
+            asset.exifInfo?.dateTimeOriginal ?: asset.fileModifiedAt
+        } else null
+    }
+
+    protected fun updateNavigationModeDisplay() {
+        navigationModeValue?.text = currentNavigationMode.getTitle()
+        updateDateContext()
+    }
+
+    private fun updateDateContext() {
+        val currentAsset = getCurrentSelectedAsset()
+        val dateText = when {
+            currentAsset == null -> ""
+            currentNavigationMode == NavigationMode.PHOTO_BY_PHOTO -> {
+                formatPhotoDate(getCurrentAssetDate(currentAsset))
+            }
+            else -> formatTimeContextDate(getCurrentAssetDate(currentAsset))
+        }
+        currentDateContext?.text = dateText
+    }
+
+    private fun formatPhotoDate(date: Date?): String {
+        if (date == null) return ""
+        val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        return formatter.format(date)
+    }
+
+    private fun formatTimeContextDate(date: Date?): String {
+        if (date == null) return ""
+        val calendar = Calendar.getInstance().apply { time = date }
+        
+        return when (currentNavigationMode) {
+            NavigationMode.DAY_BY_DAY -> {
+                SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(date)
+            }
+            NavigationMode.WEEK_BY_WEEK -> {
+                val weekOfYear = calendar.get(Calendar.WEEK_OF_YEAR)
+                val year = calendar.get(Calendar.YEAR)
+                "Week $weekOfYear, $year"
+            }
+            NavigationMode.MONTH_BY_MONTH -> {
+                SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(date)
+            }
+            NavigationMode.YEAR_BY_YEAR -> {
+                calendar.get(Calendar.YEAR).toString()
+            }
+            else -> ""
+        }
+    }
+
+    private fun toggleNavigationMode() {
+        val modes = NavigationMode.entries
+        val currentIndex = modes.indexOf(currentNavigationMode)
+        val nextIndex = (currentIndex + 1) % modes.size
+        val nextMode = modes[nextIndex]
+        
+        PreferenceManager.set(NAVIGATION_MODE, nextMode)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        updateNavigationModeDisplay()
     }
 
     protected open fun fetchInitialItems() {

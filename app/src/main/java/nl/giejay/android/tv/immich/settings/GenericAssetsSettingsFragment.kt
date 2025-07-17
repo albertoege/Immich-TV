@@ -14,6 +14,7 @@ import nl.giejay.android.tv.immich.shared.prefs.ALL_ASSETS_SORTING
 import nl.giejay.android.tv.immich.shared.prefs.AlbumDetailsSettingsScreen
 import nl.giejay.android.tv.immich.shared.prefs.FILTER_CONTENT_TYPE
 import nl.giejay.android.tv.immich.shared.prefs.GenericAssetsSettingsScreen
+import nl.giejay.android.tv.immich.shared.prefs.NAVIGATION_MODE
 import nl.giejay.android.tv.immich.shared.prefs.PrefScreen
 import nl.giejay.android.tv.immich.shared.prefs.PreferenceManager
 
@@ -26,6 +27,7 @@ class GenericAssetsInnerSettingsFragment : SettingsScreenFragment.SettingsInnerF
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        findPreference<ListPreference>(NAVIGATION_MODE.key())!!.summary = NAVIGATION_MODE.getValue(PreferenceManager.sharedPreference).getTitle()
         findPreference<ListPreference>(ALL_ASSETS_SORTING.key())!!.summary = ALL_ASSETS_SORTING.getValue(PreferenceManager.sharedPreference).getTitle()
         findPreference<ListPreference>(FILTER_CONTENT_TYPE.key())!!.summary = FILTER_CONTENT_TYPE.getValue(PreferenceManager.sharedPreference).getTitle()
     }

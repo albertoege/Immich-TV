@@ -14,6 +14,8 @@ import nl.giejay.android.tv.immich.shared.prefs.DEBUG_MODE
 import nl.giejay.android.tv.immich.shared.prefs.EnumByTitlePref
 import nl.giejay.android.tv.immich.shared.prefs.FILTER_CONTENT_TYPE
 import nl.giejay.android.tv.immich.shared.prefs.MetaDataScreen
+import nl.giejay.android.tv.immich.shared.prefs.NAVIGATION_MODE
+import nl.giejay.android.tv.immich.shared.prefs.NavigationMode
 import nl.giejay.android.tv.immich.shared.prefs.PhotosOrder
 import nl.giejay.android.tv.immich.shared.prefs.PreferenceManager
 import nl.giejay.android.tv.immich.shared.prefs.SCREENSAVER_ANIMATE_ASSET_SLIDE
@@ -38,12 +40,17 @@ abstract class GenericAssetFragment : VerticalCardGridFragment<Asset>() {
         val filterKey = getFilterKey()
         currentSort = PreferenceManager.get(sortingKey)
         currentFilter = PreferenceManager.get(filterKey)
+        currentNavigationMode = PreferenceManager.get(NAVIGATION_MODE)
+        
         super.onCreate(savedInstanceState)
-        PreferenceManager.subscribeMultiple(listOf(sortingKey, filterKey)) { state ->
-            if(state[sortingKey.key()] != currentSort || state[filterKey.key()] != currentFilter){
+        
+        PreferenceManager.subscribeMultiple(listOf(sortingKey, filterKey, NAVIGATION_MODE)) { state ->
+            if(state[sortingKey.key()] != currentSort || state[filterKey.key()] != currentFilter || state[NAVIGATION_MODE.key()] != currentNavigationMode){
                 clearState()
                 currentSort = state[sortingKey.key()] as PhotosOrder
                 currentFilter = state[filterKey.key()] as ContentType
+                currentNavigationMode = state[NAVIGATION_MODE.key()] as NavigationMode
+                updateNavigationModeDisplay()
                 fetchInitialItems()
             }
         }

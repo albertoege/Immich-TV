@@ -273,6 +273,18 @@ data object ALL_ASSETS_SORTING : EnumByTitlePref<PhotosOrder>(PhotosOrder.NEWEST
     }
 }
 
+data object NAVIGATION_MODE : EnumByTitlePref<NavigationMode>(NavigationMode.PHOTO_BY_PHOTO,
+    "Navigation Mode",
+    "Choose how to navigate through photos: by photo, day, week, month, or year") {
+    override fun fromPrefValue(prefValue: String): NavigationMode {
+        return NavigationMode.valueOfSafe(prefValue, defaultValue)
+    }
+
+    override fun getEnumEntries(): Array<NavigationMode> {
+        return NavigationMode.entries.toTypedArray()
+    }
+}
+
 // other
 data object DEBUG_MODE : BooleanPref(false, "Enable debug mode", "Enable this if you are experiencing issues.")
 data object LOAD_BACKGROUND_IMAGE : BooleanPref(true, "Load selected item as background", "Load the currently selected image/album as the background")
@@ -369,6 +381,7 @@ data class AlbumDetailsSettingsScreen(val albumId: String, val albumName: String
 data object GenericAssetsSettingsScreen : PrefScreen("Settings",
     "generic_assets_settings",
     listOf(
+        PrefCategory("Navigation", listOf(NAVIGATION_MODE)),
         PrefCategory("Ordering", listOf(ALL_ASSETS_SORTING)),
         PrefCategory("Filtering", listOf(FILTER_CONTENT_TYPE))
     )
