@@ -1,14 +1,13 @@
-package nl.giejay.android.tv.immich.album
+package com.albertoeg.android.tv.immich.album
 
 import android.os.Bundle
 import arrow.core.Either
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
-import nl.giejay.android.tv.immich.api.ApiClient
-import nl.giejay.android.tv.immich.api.model.Asset
-import nl.giejay.android.tv.immich.shared.prefs.ContentType
-import nl.giejay.android.tv.immich.shared.prefs.EnumByTitlePref
-import nl.giejay.android.tv.immich.shared.prefs.PhotosOrder
+import com.albertoeg.android.tv.immich.api.ApiClient
+import com.albertoeg.android.tv.immich.api.model.Asset
+import com.albertoeg.android.tv.immich.shared.prefs.ContentType
+import com.albertoeg.android.tv.immich.shared.prefs.PhotosOrder
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test

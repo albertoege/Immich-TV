@@ -51,11 +51,11 @@
 
     <!--    <fragment-->
     <!--        android:id="@+id/playbackFragment"-->
-    <!--        android:name="nl.giejay.android.tv.immich.playback.PlaybackFragment"-->
+    <!--        android:name="com.albertoeg.android.tv.immich.playback.PlaybackFragment"-->
     <!--        android:label="PlaybackFragment">-->
     <!--        <argument-->
     <!--            android:name="video"-->
-    <!--            app:argType="nl.giejay.android.tv.immich.shared.datamodel.Video" />-->
+    <!--            app:argType="com.albertoeg.android.tv.immich.shared.datamodel.Video" />-->
     <!--        <action-->
     <!--            android:id="@+id/action_playbackFragment_to_playbackErrorFragment"-->
     <!--            app:destination="@id/playbackErrorFragment" />-->
@@ -63,7 +63,7 @@
 
     <fragment
         android:id="@+id/albumDetailsFragment"
-        android:name="nl.giejay.android.tv.immich.album.AlbumDetailsFragment"
+        android:name="com.albertoeg.android.tv.immich.album.AlbumDetailsFragment"
         android:label="AlbumDetailsFragment">
         <argument
             android:name="albumId"
@@ -78,7 +78,7 @@
 
     <fragment
         android:id="@+id/personAssetsFragment"
-        android:name="nl.giejay.android.tv.immich.people.PersonAssetsFragment"
+        android:name="com.albertoeg.android.tv.immich.people.PersonAssetsFragment"
         android:label="PersonAssetsFragment">
         <argument
             android:name="personId"
@@ -93,28 +93,28 @@
 
     <fragment
         android:id="@+id/peopleFragment"
-        android:name="nl.giejay.android.tv.immich.people.PeopleFragment"
+        android:name="com.albertoeg.android.tv.immich.people.PeopleFragment"
         android:label="PeopleFragment">
     </fragment>
 
     <fragment
         android:id="@+id/metaDataCustomizer"
-        android:name="nl.giejay.android.tv.immich.settings.MetaDataCustomizerFragment"
+        android:name="com.albertoeg.android.tv.immich.settings.MetaDataCustomizerFragment"
         android:label="MetaDataFragment">
         <argument
             android:name="screen"
-            app:argType="nl.giejay.android.tv.immich.shared.prefs.MetaDataScreen" />
+            app:argType="com.albertoeg.android.tv.immich.shared.prefs.MetaDataScreen" />
     </fragment>
 
     <fragment
         android:id="@+id/allAssetsFragment"
-        android:name="nl.giejay.android.tv.immich.assets.AllAssetFragment"
+        android:name="com.albertoeg.android.tv.immich.assets.AllAssetFragment"
         android:label="AllAssetsFragment">
     </fragment>
 
     <fragment
         android:id="@+id/photoSlider"
-        android:name="nl.giejay.android.tv.immich.slider.ImmichMediaSlider"
+        android:name="com.albertoeg.android.tv.immich.slider.ImmichMediaSlider"
         android:label="PhotoSlider">
         <argument
             android:name="config"
@@ -127,7 +127,7 @@
 
     <fragment
         android:id="@+id/authFragment"
-        android:name="nl.giejay.android.tv.immich.auth.AuthFragmentStep1"
+        android:name="com.albertoeg.android.tv.immich.auth.AuthFragmentStep1"
         android:label="Authentication">
         <action
             android:id="@+id/action_auth_to_auth_2"
@@ -141,27 +141,27 @@
 
     <fragment
         android:id="@+id/donateFragment"
-        android:name="nl.giejay.android.tv.immich.shared.donate.DonateFragment"
+        android:name="com.albertoeg.android.tv.immich.shared.donate.DonateFragment"
         android:label="Donate">
     </fragment>
 
     <fragment
         android:id="@+id/authFragmentStep2"
-        android:name="nl.giejay.android.tv.immich.auth.AuthFragmentStep2"
+        android:name="com.albertoeg.android.tv.immich.auth.AuthFragmentStep2"
         android:label="Authentication"></fragment>
 
     <fragment
         android:id="@+id/authByPhoneFragment"
-        android:name="nl.giejay.android.tv.immich.auth.AuthByPhoneFragment"
+        android:name="com.albertoeg.android.tv.immich.auth.AuthByPhoneFragment"
         android:label="Authentication"></fragment>
 
     <!--    <fragment-->
     <!--        android:id="@+id/playbackErrorFragment"-->
-    <!--        android:name="nl.giejay.android.tv.immich.playback.PlaybackErrorFragment"-->
+    <!--        android:name="com.albertoeg.android.tv.immich.playback.PlaybackErrorFragment"-->
     <!--        android:label="PlaybackErrorFragment">-->
     <!--        <argument-->
     <!--            android:name="video"-->
-    <!--            app:argType="nl.giejay.android.tv.immich.shared.datamodel.Video" />-->
+    <!--            app:argType="com.albertoeg.android.tv.immich.shared.datamodel.Video" />-->
     <!--        <argument-->
     <!--            android:name="error"-->
     <!--            app:argType="java.lang.Exception" />-->
@@ -178,7 +178,7 @@
     <!--    </fragment>-->
     <fragment
         android:id="@+id/albumFragment"
-        android:name="nl.giejay.android.tv.immich.album.AlbumFragment"
+        android:name="com.albertoeg.android.tv.immich.album.AlbumFragment"
         android:label="AlbumFragment">
 
         <argument
@@ -192,7 +192,7 @@
 
     <fragment
         android:id="@+id/homeFragment"
-        android:name="nl.giejay.android.tv.immich.home.HomeFragment"
+        android:name="com.albertoeg.android.tv.immich.home.HomeFragment"
         android:label="HomeFragment">
         <action
             android:id="@+id/action_homeFragment_to_albumDetailsFragment"
@@ -213,7 +213,7 @@
 
     <dialog
         android:id="@+id/settings_dialog_fragment"
-        android:name="nl.giejay.android.tv.immich.settings.SettingsDialogFragment">
+        android:name="com.albertoeg.android.tv.immich.settings.SettingsDialogFragment">
         <argument
             android:name="settings_type"
             app:argType="string" />
@@ -236,17 +236,17 @@
         <argument
             android:name="screen"
             android:defaultValue="VIEWER"
-            app:argType="nl.giejay.android.tv.immich.shared.prefs.MetaDataScreen" />
+            app:argType="com.albertoeg.android.tv.immich.shared.prefs.MetaDataScreen" />
     </dialog>
 
     <fragment
         android:id="@+id/viewSettings"
-        android:name="nl.giejay.android.tv.immich.settings.PrefSettingsFragment"
+        android:name="com.albertoeg.android.tv.immich.settings.PrefSettingsFragment"
         android:label="ViewSettings"></fragment>
 
     <fragment
         android:id="@+id/noFirebaseFragment"
-        android:name="nl.giejay.android.tv.immich.auth.AuthByPhoneFragment"
+        android:name="com.albertoeg.android.tv.immich.auth.AuthByPhoneFragment"
         android:label="NoFirebaseFragment">
         <action
             android:id="@+id/action_noFirebaseFragment_to_browseFragment"

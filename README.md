@@ -80,5 +80,5 @@ might consider buying me a coffee or a beer:
 4. After downloading/installing ADB on the PC, connect to the device using it's IP: adb connect
    192.168.xx.xx.
 5. Once you are connected, execute the following command: 'adb shell settings put secure
-   screensaver_components nl.giejay.android.tv.immich/.screensaver.ScreenSaverService'
+   screensaver_components com.albertoeg.android.tv.immich/.screensaver.ScreenSaverService'
 6. Done!

@@ -52,14 +52,14 @@ RELEASE_KEY_PASSWORD=password_de_la_key
 #### Configuración Local del Keystore:
 1. Generar keystore (si no existe):
 ```bash
-keytool -genkey -v -keystore release-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias immich-tv-key
+keytool -genkey -v -keystore release-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias com.albertoeg.android.tv.immich-tv-key
 ```
 
 2. Configurar variables de entorno:
 ```bash
 set RELEASE_KEYSTORE_PATH=%cd%\release-keystore.jks
 set RELEASE_KEYSTORE_PASSWORD=tu_password
-set RELEASE_KEY_ALIAS=immich-tv-key
+set RELEASE_KEY_ALIAS=com.albertoeg.android.tv.immich-tv-key
 set RELEASE_KEY_PASSWORD=tu_key_password
 ```
 
@@ -82,7 +82,7 @@ GOOGLE_SERVICES_BASE64
 - **Obtención:** 
   1. Ir a [Firebase Console](https://console.firebase.google.com/)
   2. Crear proyecto o usar existente
-  3. Agregar aplicación Android con package name: `nl.giejay.android.tv.immich`
+  3. Agregar aplicación Android con package name: `com.albertoeg.android.tv.immich`
   4. Descargar `google-services.json`
   5. Codificar en base64: `base64 -w 0 google-services.json`
 
@@ -118,7 +118,7 @@ RELEASE_KEY_PASSWORD
 2. Crear nuevo proyecto: "Immich-TV"
 3. Habilitar Google Analytics (opcional)
 4. Agregar aplicación Android:
-   - **Package name:** `nl.giejay.android.tv.immich`
+   - **Package name:** `com.albertoeg.android.tv.immich`
    - **App nickname:** "Immich-TV"
    - **SHA-1:** Obtener con `keytool -list -v -keystore release-keystore.jks`
 
@@ -290,7 +290,7 @@ jarsigner -verify -verbose -certs app/build/outputs/apk/release/ImmichTV-*.apk
 adb install app/build/outputs/apk/release/ImmichTV-*.apk
 
 # Verificar funcionamiento básico
-adb shell monkey -p nl.giejay.android.tv.immich -c android.intent.category.LAUNCHER 1
+adb shell monkey -p com.albertoeg.android.tv.immich -c android.intent.category.LAUNCHER 1
 ```
 
 ## Distribución Post-Release

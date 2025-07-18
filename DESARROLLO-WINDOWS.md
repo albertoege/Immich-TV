@@ -186,7 +186,7 @@ adb install app\build\outputs\apk\debug\app-debug.apk
 adb logcat | findstr "ImmichTV"
 
 # Configurar app como screensaver (requiere modo desarrollador)
-adb shell settings put secure screensaver_components nl.giejay.android.tv.immich/.screensaver.ScreenSaverService
+adb shell settings put secure screensaver_components com.albertoeg.android.tv.immich/.screensaver.ScreenSaverService
 ```
 
 ## Estructura del Proyecto
