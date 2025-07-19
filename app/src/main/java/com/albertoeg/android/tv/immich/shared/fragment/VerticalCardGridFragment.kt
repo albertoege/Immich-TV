@@ -185,6 +185,7 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
             return false
         }
 
+        Timber.d("Handling navigation key event: keyCode=$keyCode, mode=${currentNavigationMode.getTitle()}")
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> navigateByTimeMode(-1)
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> navigateByTimeMode(1)
@@ -196,7 +197,8 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
     private fun navigateByTimeMode(direction: Int) {
         val currentAsset = getCurrentSelectedAsset() ?: return
         val targetIndex = findTargetIndexByNavigationMode(currentAsset, direction)
-        if (targetIndex != -1 && targetIndex != currentSelectedIndex) {
+        Timber.d("Time-based navigation: direction=$direction, currentIndex=$currentSelectedIndex, targetIndex=$targetIndex, mode=${currentNavigationMode.getTitle()}")
+        if (targetIndex != -1 && targetIndex != currentSelectedIndex && targetIndex < assets.size) {
             updateManualPositionHandler(targetIndex)
         }
     }
@@ -313,10 +315,9 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         super.onViewCreated(view, savedInstanceState)
         updateNavigationModeDisplay()
         
-        // Set focus on the view to ensure it can receive key events
-        view.isFocusable = true
-        view.isFocusableInTouchMode = true
-        view.setOnKeyListener { _, keyCode, event ->
+        // Set key listener on the grid frame to handle navigation mode changes
+        val gridFrame = view.findViewById<androidx.leanback.widget.BrowseFrameLayout>(R.id.grid_frame)
+        gridFrame?.setOnKeyListener { _, _, event ->
             if (event.action == KeyEvent.ACTION_DOWN) {
                 handleKeyEvent(event)
             } else {
