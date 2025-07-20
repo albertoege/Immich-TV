@@ -114,13 +114,13 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 keyEvents.state.collect {
-                    // Handle special keys that don't need navigation mode consideration
-                    if (it?.keyCode == KeyEvent.KEYCODE_FORWARD || it?.keyCode == KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD || it?.keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) {
+                    // open popup menu on the right side if its the last photo in the row and user presses right button
+                    if (it?.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && ((adapter.size() == 0 && allPagesLoaded) || currentSelectedIndex > 0 && (currentSelectedIndex % COLUMNS == 3 || currentSelectedIndex + 1 == adapter.size()))) {
+                        openPopUpMenu()
+                    } else if (it?.keyCode == KeyEvent.KEYCODE_FORWARD || it?.keyCode == KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD || it?.keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) {
                         updateManualPositionHandler(adapter.size() - 1)
                     } else if (it?.keyCode == KeyEvent.KEYCODE_MEDIA_REWIND || it?.keyCode == KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD) {
                         updateManualPositionHandler((currentSelectedIndex - FETCH_PAGE_COUNT).coerceAtLeast(0))
-                    } else if (it?.keyCode == KeyEvent.KEYCODE_MENU) {
-                        toggleNavigationMode()
                     }
                 }
             }
@@ -158,47 +158,47 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         fetchInitialItems()
     }
 
-    private fun handleKeyEvent(event: KeyEvent?): Boolean {
-        if (event?.action != KeyEvent.ACTION_DOWN) return false
-        
-        when (event.keyCode) {
+    private fun handleKeyEvent(event: KeyEvent?) {
+        when (event?.keyCode) {
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                // Check if we should open the popup menu instead
                 if ((adapter.size() == 0 && allPagesLoaded) || currentSelectedIndex > 0 && (currentSelectedIndex % COLUMNS == 3 || currentSelectedIndex + 1 == adapter.size())) {
                     openPopUpMenu()
-                    return true
+                } else {
+                    handleNavigationKeyEvent(event.keyCode)
                 }
-                return handleNavigationKeyEvent(event.keyCode)
             }
-            KeyEvent.KEYCODE_DPAD_LEFT,
-            KeyEvent.KEYCODE_DPAD_UP,
-            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                return handleNavigationKeyEvent(event.keyCode)
+            KeyEvent.KEYCODE_DPAD_LEFT -> handleNavigationKeyEvent(event.keyCode)
+            KeyEvent.KEYCODE_DPAD_UP -> handleNavigationKeyEvent(event.keyCode)
+            KeyEvent.KEYCODE_DPAD_DOWN -> handleNavigationKeyEvent(event.keyCode)
+            KeyEvent.KEYCODE_FORWARD, KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                updateManualPositionHandler(adapter.size() - 1)
+            }
+            KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD -> {
+                updateManualPositionHandler((currentSelectedIndex - FETCH_PAGE_COUNT).coerceAtLeast(0))
+            }
+            KeyEvent.KEYCODE_MENU -> {
+                // Toggle navigation mode
+                toggleNavigationMode()
             }
         }
-        return false // Let default handling occur for unhandled keys
     }
 
-    private fun handleNavigationKeyEvent(keyCode: Int): Boolean {
+    private fun handleNavigationKeyEvent(keyCode: Int) {
         if (currentNavigationMode == NavigationMode.PHOTO_BY_PHOTO) {
             // Let default navigation handle it
-            return false
+            return
         }
 
-        Timber.d("Handling navigation key event: keyCode=$keyCode, mode=${currentNavigationMode.getTitle()}")
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> navigateByTimeMode(-1)
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> navigateByTimeMode(1)
-            else -> return false
         }
-        return true // Event was handled by time-based navigation
     }
 
     private fun navigateByTimeMode(direction: Int) {
         val currentAsset = getCurrentSelectedAsset() ?: return
         val targetIndex = findTargetIndexByNavigationMode(currentAsset, direction)
-        Timber.d("Time-based navigation: direction=$direction, currentIndex=$currentSelectedIndex, targetIndex=$targetIndex, mode=${currentNavigationMode.getTitle()}")
-        if (targetIndex != -1 && targetIndex != currentSelectedIndex && targetIndex < assets.size) {
+        if (targetIndex != -1 && targetIndex != currentSelectedIndex) {
             updateManualPositionHandler(targetIndex)
         }
     }
@@ -314,16 +314,6 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         updateNavigationModeDisplay()
-        
-        // Set key listener on the grid frame to handle navigation mode changes
-        val gridFrame = view.findViewById<androidx.leanback.widget.BrowseFrameLayout>(R.id.grid_frame)
-        gridFrame?.setOnKeyListener { _, _, event ->
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                handleKeyEvent(event)
-            } else {
-                false
-            }
-        }
     }
 
     protected open fun fetchInitialItems() {
