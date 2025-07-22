@@ -16,8 +16,8 @@
 
 plugins {
     id 'com.android.application'
-    // id 'com.google.gms.google-services'
-    // id 'com.google.firebase.crashlytics'
+    id 'com.google.gms.google-services'
+    id 'com.google.firebase.crashlytics'
     id 'org.jetbrains.kotlin.android' version "${kotlin_version}"
     id 'kotlin-parcelize'
     id 'androidx.navigation.safeargs.kotlin'
@@ -108,11 +108,11 @@ dependencies {
     implementation "androidx.leanback:leanback-preference:$leanback_version"
     implementation 'io.arrow-kt:arrow-core:1.2.0'
 
-    // implementation platform('com.google.firebase:firebase-bom:33.16.0')
+    implementation platform('com.google.firebase:firebase-bom:33.16.0')
 
     // Dependencias de Firebase Crashlytics y Analytics (KTX para Kotlin)
-    // implementation 'com.google.firebase:firebase-crashlytics-ktx'
-    // implementation 'com.google.firebase:firebase-analytics-ktx' // Recome
+    implementation 'com.google.firebase:firebase-crashlytics-ktx'
+    implementation 'com.google.firebase:firebase-analytics-ktx' // Recome
 
     // Cast library used for Cast Connect feature
 //    implementation "com.google.android.gms:play-services-cast-tv:$cast_tv_version"
