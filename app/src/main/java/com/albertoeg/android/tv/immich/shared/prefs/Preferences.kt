@@ -273,9 +273,10 @@ data object ALL_ASSETS_SORTING : EnumByTitlePref<PhotosOrder>(PhotosOrder.NEWEST
     }
 }
 
+// Agregar la preferencia NAVIGATION_MODE
 data object NAVIGATION_MODE : EnumByTitlePref<NavigationMode>(NavigationMode.PHOTO_BY_PHOTO,
     "Navigation Mode",
-    "Choose how to navigate through photos: by photo, day, week, month, or year") {
+    "Set the navigation mode for browsing photos") {
     override fun fromPrefValue(prefValue: String): NavigationMode {
         return NavigationMode.valueOfSafe(prefValue, defaultValue)
     }
@@ -381,7 +382,8 @@ data class AlbumDetailsSettingsScreen(val albumId: String, val albumName: String
 data object GenericAssetsSettingsScreen : PrefScreen("Settings",
     "generic_assets_settings",
     listOf(
-        PrefCategory("Navigation", listOf(NAVIGATION_MODE)),
+        // Quitar la categoría de Navigation ya que ahora usamos el menú de navegación rápida
+        // PrefCategory("Navigation", listOf(NAVIGATION_MODE)),
         PrefCategory("Ordering", listOf(ALL_ASSETS_SORTING)),
         PrefCategory("Filtering", listOf(FILTER_CONTENT_TYPE))
     )

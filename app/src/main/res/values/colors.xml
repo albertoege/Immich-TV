@@ -29,6 +29,9 @@
     <!-- Colors defined dedicated for TV screen black. -->
     <color name="screen_black">#0E0E0F</color>
 
+    <!-- Color for photo card background -->
+    <color name="card_background_color">@color/gray_dark</color>
+
     <color name="default_text_color">@color/screen_white</color>
     <color name="default_text_color_secondary">@color/screen_white_60</color>
 

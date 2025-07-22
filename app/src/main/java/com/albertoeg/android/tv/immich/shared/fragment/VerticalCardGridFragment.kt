@@ -90,6 +90,9 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Cargar el modo de navegación desde las preferencias
+        currentNavigationMode = PreferenceManager.get(NAVIGATION_MODE)
+
         if (PreferenceManager.isLoggedId()) {
             apiClient =
                 ApiClient.getClient(
@@ -113,15 +116,9 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         keyEvents = ViewModelProvider(requireActivity())[KeyEventsViewModel::class.java]
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                keyEvents.state.collect {
-                    // Handle special keys that don't need navigation mode consideration
-                    if (it?.keyCode == KeyEvent.KEYCODE_FORWARD || it?.keyCode == KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD || it?.keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) {
-                        updateManualPositionHandler(adapter.size() - 1)
-                    } else if (it?.keyCode == KeyEvent.KEYCODE_MEDIA_REWIND || it?.keyCode == KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD) {
-                        updateManualPositionHandler((currentSelectedIndex - FETCH_PAGE_COUNT).coerceAtLeast(0))
-                    } else if (it?.keyCode == KeyEvent.KEYCODE_MENU) {
-                        toggleNavigationMode()
-                    }
+                keyEvents.state.collect { keyEvent ->
+                    // Llamar a handleKeyEvent para procesar todos los eventos de teclas
+                    handleKeyEvent(keyEvent)
                 }
             }
         }
@@ -149,6 +146,8 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
                     }
                 }
                 updateDateContext()
+                // Actualizar también la información de rango de fechas cuando cambies de foto
+                updateDateRangeDisplay()
             }
             with(this@VerticalCardGridFragment) {
                 loadNextItemsIfNeeded(adapter.indexOf(item))
@@ -158,55 +157,59 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         fetchInitialItems()
     }
 
-    private fun handleKeyEvent(event: KeyEvent?): Boolean {
-        if (event?.action != KeyEvent.ACTION_DOWN) return false
-        
-        when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                // Check if we should open the popup menu instead
-                if ((adapter.size() == 0 && allPagesLoaded) || currentSelectedIndex > 0 && (currentSelectedIndex % COLUMNS == 3 || currentSelectedIndex + 1 == adapter.size())) {
-                    openPopUpMenu()
-                    return true
+    private fun handleKeyEvent(event: KeyEvent?) {
+        when (event?.keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> {
+                if (currentNavigationMode != NavigationMode.PHOTO_BY_PHOTO) {
+                    navigateByTimeMode(-1)
                 }
-                return handleNavigationKeyEvent(event.keyCode)
             }
-            KeyEvent.KEYCODE_DPAD_LEFT,
-            KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                if (currentNavigationMode != NavigationMode.PHOTO_BY_PHOTO) {
+                    navigateByTimeMode(1)
+                } else {
+                    // Solo abrir menú si está en el borde derecho, no interferir con navegación normal
+                    if ((adapter.size() == 0 && allPagesLoaded) || currentSelectedIndex > 0 && (currentSelectedIndex % COLUMNS == 3 || currentSelectedIndex + 1 == adapter.size())) {
+                        openPopUpMenu()
+                    }
+                }
+            }
             KeyEvent.KEYCODE_DPAD_DOWN -> {
-                return handleNavigationKeyEvent(event.keyCode)
+                if (currentNavigationMode != NavigationMode.PHOTO_BY_PHOTO) {
+                    navigateByTimeMode(1)
+                }
+            }
+            KeyEvent.KEYCODE_FORWARD, KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                updateManualPositionHandler(adapter.size() - 1)
+            }
+            KeyEvent.KEYCODE_MEDIA_REWIND, KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD -> {
+                updateManualPositionHandler((currentSelectedIndex - FETCH_PAGE_COUNT).coerceAtLeast(0))
+            }
+            KeyEvent.KEYCODE_MENU -> {
+                // Toggle navigation mode display pero no interferir con navegación
+                toggleNavigationMode()
             }
         }
-        return false // Let default handling occur for unhandled keys
     }
 
-    private fun handleNavigationKeyEvent(keyCode: Int): Boolean {
+    private fun handleNavigationKeyEvent(keyCode: Int) {
         if (currentNavigationMode == NavigationMode.PHOTO_BY_PHOTO) {
             // Let default navigation handle it
-            return false
+            return
         }
 
-        Timber.d("Handling navigation key event: keyCode=$keyCode, mode=${currentNavigationMode.getTitle()}")
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP -> navigateByTimeMode(-1)
             KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN -> navigateByTimeMode(1)
-            else -> return false
         }
-        return true // Event was handled by time-based navigation
     }
 
     private fun navigateByTimeMode(direction: Int) {
         val currentAsset = getCurrentSelectedAsset() ?: return
-        val targetIndex = findTargetIndexByNavigationMode(currentAsset, direction)
-        Timber.d("Time-based navigation: direction=$direction, currentIndex=$currentSelectedIndex, targetIndex=$targetIndex, mode=${currentNavigationMode.getTitle()}")
-        if (targetIndex != -1 && targetIndex != currentSelectedIndex && targetIndex < assets.size) {
-            updateManualPositionHandler(targetIndex)
-        }
-    }
-
-    private fun findTargetIndexByNavigationMode(currentAsset: ITEM, direction: Int): Int {
-        val currentDate = getCurrentAssetDate(currentAsset) ?: return -1
+        val currentDate = getCurrentAssetDate(currentAsset) ?: return
         val calendar = Calendar.getInstance().apply { time = currentDate }
 
+        // Aplicar el cambio de tiempo según el modo actual
         when (currentNavigationMode) {
             NavigationMode.DAY_BY_DAY -> {
                 calendar.add(Calendar.DAY_OF_YEAR, direction)
@@ -216,15 +219,387 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
             }
             NavigationMode.MONTH_BY_MONTH -> {
                 calendar.add(Calendar.MONTH, direction)
+                // Para navegación por mes, reiniciar carga desde la fecha objetivo
+                navigateToDateWithFreshLoad(calendar.time, currentNavigationMode, direction)
+                return
             }
             NavigationMode.YEAR_BY_YEAR -> {
                 calendar.add(Calendar.YEAR, direction)
+                // Para navegación por año, reiniciar carga desde la fecha objetivo
+                navigateToDateWithFreshLoad(calendar.time, currentNavigationMode, direction)
+                return
             }
-            else -> return -1
+            else -> return
         }
 
         val targetDate = calendar.time
-        return findClosestAssetByDate(targetDate)
+        val targetIndex = findBestAssetByDate(targetDate)
+
+        if (targetIndex != -1 && targetIndex != currentSelectedIndex) {
+            val foundAsset = assets[targetIndex]
+            val foundDate = getCurrentAssetDate(foundAsset)
+
+            if (foundDate != null) {
+                updateManualPositionHandler(targetIndex)
+
+                val periodName = when (currentNavigationMode) {
+                    NavigationMode.MONTH_BY_MONTH -> if (direction > 0) "mes siguiente" else "mes anterior"
+                    NavigationMode.YEAR_BY_YEAR -> if (direction > 0) "año siguiente" else "año anterior"
+                    NavigationMode.WEEK_BY_WEEK -> if (direction > 0) "semana siguiente" else "semana anterior"
+                    NavigationMode.DAY_BY_DAY -> if (direction > 0) "día siguiente" else "día anterior"
+                    else -> "período"
+                }
+
+                Toast.makeText(
+                    requireContext(),
+                    "Navegando al $periodName: ${formatPhotoDate(foundDate)}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        } else {
+            // Para navegación por día/semana, usar lógica de búsqueda incremental
+            if ((currentNavigationMode == NavigationMode.DAY_BY_DAY || currentNavigationMode == NavigationMode.WEEK_BY_WEEK) && !allPagesLoaded) {
+                loadMoreDataAndSearchForDate(targetDate, direction)
+            } else {
+                val periodName = when (currentNavigationMode) {
+                    NavigationMode.WEEK_BY_WEEK -> if (direction > 0) "semana siguiente" else "semana anterior"
+                    NavigationMode.DAY_BY_DAY -> if (direction > 0) "día siguiente" else "día anterior"
+                    else -> "período"
+                }
+
+                Toast.makeText(
+                    requireContext(),
+                    "No hay fotos disponibles para el $periodName",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    // Nueva función para navegar a una fecha específica con carga fresca de datos
+    private fun navigateToDateWithFreshLoad(targetDate: Date, navigationMode: NavigationMode, direction: Int) {
+        val calendar = Calendar.getInstance().apply { time = targetDate }
+        val targetYear = calendar.get(Calendar.YEAR)
+        val targetMonth = calendar.get(Calendar.MONTH)
+
+        val periodName = when (navigationMode) {
+            NavigationMode.MONTH_BY_MONTH -> {
+                val monthName = SimpleDateFormat("MMMM", Locale.getDefault()).format(targetDate)
+                if (direction > 0) "mes siguiente ($monthName $targetYear)" else "mes anterior ($monthName $targetYear)"
+            }
+            NavigationMode.YEAR_BY_YEAR -> {
+                if (direction > 0) "año siguiente ($targetYear)" else "año anterior ($targetYear)"
+            }
+            else -> "período"
+        }
+
+        // Mostrar mensaje de búsqueda
+        Toast.makeText(
+            requireContext(),
+            "Buscando fotos del $periodName...",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        ioScope.launch {
+            try {
+                // Primero buscar en los datos ya cargados
+                withContext(Dispatchers.Main) {
+                    val quickIndex = when (navigationMode) {
+                        NavigationMode.YEAR_BY_YEAR -> findAssetByYear(targetYear)
+                        NavigationMode.MONTH_BY_MONTH -> findAssetByYearAndMonth(targetYear, targetMonth)
+                        else -> findBestAssetByDate(targetDate)
+                    }
+
+                    if (quickIndex != -1) {
+                        // Encontrado in datos existentes
+                        val foundAsset = assets[quickIndex]
+                        val foundDate = getCurrentAssetDate(foundAsset)
+
+                        if (foundDate != null) {
+                            updateManualPositionHandler(quickIndex)
+                            Toast.makeText(
+                                requireContext(),
+                                "Navegando al $periodName: ${formatPhotoDate(foundDate)}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@withContext
+                        }
+                    }
+                }
+
+                // Si no encontramos en datos existentes, cargar datos frescos desde la API
+                val foundPhotos = searchPhotosFromDate(targetDate, navigationMode, direction)
+
+                withContext(Dispatchers.Main) {
+                    if (foundPhotos.isNotEmpty()) {
+                        // Reiniciar la vista con las nuevas fotos encontradas
+                        resetViewWithNewPhotos(foundPhotos, targetDate, periodName)
+                    } else {
+                        Toast.makeText(
+                            requireContext(),
+                            "No se encontraron fotos para el $periodName",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error al buscar fotos para $periodName")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Error al buscar fotos para el $periodName",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    // Nueva función mejorada para buscar fotos desde una fecha específica usando la API
+    private suspend fun searchPhotosFromDate(targetDate: Date, navigationMode: NavigationMode, direction: Int): List<ITEM> {
+        val calendar = Calendar.getInstance().apply { time = targetDate }
+        val targetYear = calendar.get(Calendar.YEAR)
+        val targetMonth = calendar.get(Calendar.MONTH)
+
+        Timber.d("Buscando fotos para: ${if (navigationMode == NavigationMode.YEAR_BY_YEAR) "año $targetYear" else "mes ${targetMonth + 1}/$targetYear"}")
+
+        // Estrategia 1: Cargar muchas páginas para tener un rango amplio de fechas
+        val allFoundItems = mutableListOf<ITEM>()
+        var searchPage = 1
+        val maxSearchPages = 50 // Buscar en hasta 50 páginas
+
+        // Cargar múltiples páginas para obtener un rango amplio de fotos
+        var pageIndex = 0
+        while (pageIndex < maxSearchPages) {
+            val searchResult = loadItems(apiClient, searchPage + pageIndex, FETCH_PAGE_COUNT)
+
+            when (searchResult) {
+                is Either.Right -> {
+                    val items = filterItems(searchResult.value)
+                    if (items.isNotEmpty()) {
+                        allFoundItems.addAll(items)
+
+                        // Log del rango de fechas encontrado
+                        val dates = items.mapNotNull { getCurrentAssetDate(it) }.sorted()
+                        if (dates.isNotEmpty()) {
+                            val firstDate = dates.first()
+                            val lastDate = dates.last()
+                            val firstCal = Calendar.getInstance().apply { time = firstDate }
+                            val lastCal = Calendar.getInstance().apply { time = lastDate }
+                            Timber.d("Página ${searchPage + pageIndex}: ${firstCal.get(Calendar.YEAR)}/${firstCal.get(Calendar.MONTH)+1} - ${lastCal.get(Calendar.YEAR)}/${lastCal.get(Calendar.MONTH)+1}")
+                        }
+                    } else {
+                        // Si una página está vacía, probablemente hemos llegado al final
+                        break
+                    }
+                }
+                is Either.Left -> {
+                    Timber.e("Error cargando página ${searchPage + pageIndex}: ${searchResult.value}")
+                    break
+                }
+            }
+            pageIndex++
+        }
+
+        Timber.d("Total de fotos cargadas para búsqueda: ${allFoundItems.size}")
+
+        if (allFoundItems.isEmpty()) {
+            return emptyList()
+        }
+
+        // Estrategia 2: Filtrar fotos por el período objetivo
+        val matchingItems = allFoundItems.filter { item ->
+            val itemDate = getCurrentAssetDate(item)
+            if (itemDate != null) {
+                val itemCalendar = Calendar.getInstance().apply { time = itemDate }
+                when (navigationMode) {
+                    NavigationMode.YEAR_BY_YEAR -> {
+                        itemCalendar.get(Calendar.YEAR) == targetYear
+                    }
+                    NavigationMode.MONTH_BY_MONTH -> {
+                        itemCalendar.get(Calendar.YEAR) == targetYear &&
+                                itemCalendar.get(Calendar.MONTH) == targetMonth
+                    }
+                    else -> false
+                }
+            } else false
+        }
+
+        if (matchingItems.isNotEmpty()) {
+            Timber.d("Encontradas ${matchingItems.size} fotos para el período objetivo")
+            return matchingItems
+        }
+
+        // Estrategia 3: Si no encontramos el período exacto, buscar el más cercano
+        Timber.d("No se encontraron fotos para el período exacto, buscando el más cercano...")
+
+        // Obtener todas las fechas disponibles y ordenarlas
+        val allDatesWithItems = allFoundItems.mapNotNull { item ->
+            getCurrentAssetDate(item)?.let { date -> date to item }
+        }.sortedBy { it.first }
+
+        if (allDatesWithItems.isEmpty()) {
+            return emptyList()
+        }
+
+        // Buscar la fecha más cercana al objetivo
+        val targetTime = targetDate.time
+        var closestItem: ITEM? = null
+        var minDifference = Long.MAX_VALUE
+
+        for ((itemDate, item) in allDatesWithItems) {
+            val difference = Math.abs(targetTime - itemDate.time)
+            if (difference < minDifference) {
+                minDifference = difference
+                closestItem = item
+            }
+        }
+
+        // Si encontramos una foto cercana, buscar todas las fotos del mismo período
+        closestItem?.let { item ->
+            val closestDate = getCurrentAssetDate(item)
+            if (closestDate != null) {
+                val closestCalendar = Calendar.getInstance().apply { time = closestDate }
+                val closestYear = closestCalendar.get(Calendar.YEAR)
+                val closestMonth = closestCalendar.get(Calendar.MONTH)
+
+                val closestPeriodItems = allFoundItems.filter { periodItem ->
+                    val periodDate = getCurrentAssetDate(periodItem)
+                    if (periodDate != null) {
+                        val periodCalendar = Calendar.getInstance().apply { time = periodDate }
+                        when (navigationMode) {
+                            NavigationMode.YEAR_BY_YEAR -> {
+                                periodCalendar.get(Calendar.YEAR) == closestYear
+                            }
+                            NavigationMode.MONTH_BY_MONTH -> {
+                                periodCalendar.get(Calendar.YEAR) == closestYear &&
+                                        periodCalendar.get(Calendar.MONTH) == closestMonth
+                            }
+                            else -> false
+                        }
+                    } else false
+                }
+
+                if (closestPeriodItems.isNotEmpty()) {
+                    val foundPeriodName = when (navigationMode) {
+                        NavigationMode.YEAR_BY_YEAR -> "año $closestYear"
+                        NavigationMode.MONTH_BY_MONTH -> {
+                            val monthName = SimpleDateFormat("MMMM", Locale.getDefault()).format(closestDate)
+                            "$monthName $closestYear"
+                        }
+                        else -> "período cercano"
+                    }
+                    Timber.d("Encontradas ${closestPeriodItems.size} fotos para el $foundPeriodName (el más cercano disponible)")
+                    return closestPeriodItems
+                }
+            }
+        }
+
+        return emptyList()
+    }
+
+    // Nueva función para reiniciar la vista con fotos encontradas
+    private fun resetViewWithNewPhotos(newPhotos: List<ITEM>, targetDate: Date, periodName: String) {
+        // Limpiar estado actual
+        clearState()
+
+        // Establecer nuevos datos
+        assets = sortItems(newPhotos)
+        assetsStillToRender.clear()
+        assetsStillToRender.addAll(assets)
+
+        // Actualizar adapter
+        adapter.clear()
+        addAssetsPaginated()
+
+        // Encontrar la mejor foto para posicionar el cursor
+        val bestIndex = findBestAssetByDate(targetDate)
+        if (bestIndex != -1) {
+            updateManualPositionHandler(bestIndex)
+            val foundAsset = assets[bestIndex]
+            val foundDate = getCurrentAssetDate(foundAsset)
+
+            if (foundDate != null) {
+                Toast.makeText(
+                    requireContext(),
+                    "Fotos cargadas para el $periodName: ${formatPhotoDate(foundDate)}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        } else {
+            Toast.makeText(
+                requireContext(),
+                "Fotos cargadas para el $periodName",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        // Ocultar progress bar y cargar background
+        progressBar?.visibility = View.GONE
+        assets.firstOrNull()?.let {
+            loadBackground(getBackgroundPicture(it)) {}
+        }
+    }
+
+    // Nueva función auxiliar para búsqueda de fechas (día/semana)
+    private fun loadMoreDataAndSearchForDate(targetDate: Date, direction: Int) {
+        ioScope.launch {
+            var found = false
+            var attempts = 0
+            val maxAttempts = 10
+
+            while (!found && !allPagesLoaded && attempts < maxAttempts) {
+                attempts++
+
+                val moreAssets = loadMoreAssets()
+
+                if (moreAssets.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        val targetIndex = findBestAssetByDate(targetDate)
+
+                        if (targetIndex != -1 && targetIndex != currentSelectedIndex) {
+                            found = true
+                            val foundAsset = assets[targetIndex]
+                            val foundDate = getCurrentAssetDate(foundAsset)
+
+                            if (foundDate != null) {
+                                updateManualPositionHandler(targetIndex)
+
+                                val periodName = when (currentNavigationMode) {
+                                    NavigationMode.WEEK_BY_WEEK -> if (direction > 0) "semana siguiente" else "semana anterior"
+                                    NavigationMode.DAY_BY_DAY -> if (direction > 0) "día siguiente" else "día anterior"
+                                    else -> "período"
+                                }
+
+                                Toast.makeText(
+                                    requireContext(),
+                                    "Navegando al $periodName: ${formatPhotoDate(foundDate)}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                } else {
+                    break
+                }
+            }
+
+            if (!found) {
+                withContext(Dispatchers.Main) {
+                    val periodName = when (currentNavigationMode) {
+                        NavigationMode.WEEK_BY_WEEK -> if (direction > 0) "semana siguiente" else "semana anterior"
+                        NavigationMode.DAY_BY_DAY -> if (direction > 0) "día siguiente" else "día anterior"
+                        else -> "período"
+                    }
+
+                    Toast.makeText(
+                        requireContext(),
+                        "No hay fotos disponibles para el $periodName",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
 
     private fun findClosestAssetByDate(targetDate: Date): Int {
@@ -256,21 +631,99 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         } else null
     }
 
+    // Nueva función para buscar específicamente por año
+    private fun findAssetByYear(targetYear: Int): Int {
+        for (i in assets.indices) {
+            val assetDate = getCurrentAssetDate(assets[i]) ?: continue
+            val assetCalendar = Calendar.getInstance().apply { time = assetDate }
+            val assetYear = assetCalendar.get(Calendar.YEAR)
+
+            if (assetYear == targetYear) {
+                return i // Encontramos la primera foto de ese año
+            }
+        }
+        return -1
+    }
+
+    // Nueva función para buscar específicamente por año y mes
+    private fun findAssetByYearAndMonth(targetYear: Int, targetMonth: Int): Int {
+        for (i in assets.indices) {
+            val assetDate = getCurrentAssetDate(assets[i]) ?: continue
+            val assetCalendar = Calendar.getInstance().apply { time = assetDate }
+            val assetYear = assetCalendar.get(Calendar.YEAR)
+            val assetMonth = assetCalendar.get(Calendar.MONTH)
+
+            if (assetYear == targetYear && assetMonth == targetMonth) {
+                return i // Encontramos la primera foto de ese año y mes
+            }
+        }
+        return -1
+    }
+
+    // Nueva función que busca de manera más inteligente
+    private fun findBestAssetByDate(targetDate: Date): Int {
+        if (assets.isEmpty()) return -1
+
+        var bestIndex = -1
+        var bestDate: Date? = null
+        var minDifference = Long.MAX_VALUE
+
+        // Buscar la foto con la fecha más cercana a la objetivo
+        for (i in assets.indices) {
+            val assetDate = getCurrentAssetDate(assets[i]) ?: continue
+            val difference = Math.abs(targetDate.time - assetDate.time)
+
+            if (difference < minDifference) {
+                minDifference = difference
+                bestIndex = i
+                bestDate = assetDate
+            }
+        }
+
+        // Si encontramos una foto, verificar que sea razonablemente cercana
+        if (bestDate != null) {
+            val daysDifference = minDifference / (1000 * 60 * 60 * 24)
+
+            // Si la diferencia es muy grande (más de 6 meses), buscar en los límites
+            if (daysDifference > 180) {
+                val firstAssetDate = getCurrentAssetDate(assets.first())
+                val lastAssetDate = getCurrentAssetDate(assets.last())
+
+                if (firstAssetDate != null && lastAssetDate != null) {
+                    val diffToFirst = Math.abs(targetDate.time - firstAssetDate.time)
+                    val diffToLast = Math.abs(targetDate.time - lastAssetDate.time)
+
+                    return if (diffToFirst < diffToLast) 0 else assets.size - 1
+                }
+            }
+        }
+
+        return bestIndex
+    }
+
     protected fun updateNavigationModeDisplay() {
-        navigationModeValue?.text = currentNavigationMode.getTitle()
+        // En lugar de mostrar el modo de navegación, mostrar información de fecha relevante
+        updateDateRangeDisplay()
         updateDateContext()
+    }
+
+    private fun updateDateRangeDisplay() {
+        // Esta función ya no es necesaria porque eliminamos los elementos de la UI
+        // Antes mostraba información de fecha en la esquina superior izquierda
+        // Ahora esa información se muestra solo en el lado derecho
     }
 
     private fun updateDateContext() {
         val currentAsset = getCurrentSelectedAsset()
-        val dateText = when {
-            currentAsset == null -> ""
+        when {
+            currentAsset == null -> return
             currentNavigationMode == NavigationMode.PHOTO_BY_PHOTO -> {
                 formatPhotoDate(getCurrentAssetDate(currentAsset))
             }
             else -> formatTimeContextDate(getCurrentAssetDate(currentAsset))
         }
-        currentDateContext?.text = dateText
+        // Elemento eliminado - la fecha ya no se muestra en la esquina superior izquierda
+        // currentDateContext?.text = dateText
     }
 
     private fun formatPhotoDate(date: Date?): String {
@@ -308,22 +761,22 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         val nextIndex = (currentIndex + 1) % modes.size
         val nextMode = modes[nextIndex]
 
+        // Guardar en preferencias y actualizar el modo actual
         PreferenceManager.save(NAVIGATION_MODE, nextMode)
+        currentNavigationMode = nextMode
+        updateNavigationModeDisplay()
+
+        // Mostrar un mensaje para indicar el cambio
+        Toast.makeText(
+            requireContext(),
+            "Modo de navegación: ${nextMode.getTitle()}",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         updateNavigationModeDisplay()
-        
-        // Set key listener on the grid frame to handle navigation mode changes
-        val gridFrame = view.findViewById<androidx.leanback.widget.BrowseFrameLayout>(R.id.grid_frame)
-        gridFrame?.setOnKeyListener { _, _, event ->
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                handleKeyEvent(event)
-            } else {
-                false
-            }
-        }
     }
 
     protected open fun fetchInitialItems() {
@@ -517,6 +970,30 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         Timber.e(message)
     }
 
+    // Función pública para navegación por año o mes desde los settings
+    fun navigateByYearOrMonth(period: NavigationMode, direction: Int) {
+        val currentAsset = getCurrentSelectedAsset() ?: return
+        val currentDate = getCurrentAssetDate(currentAsset) ?: return
+        val calendar = Calendar.getInstance().apply { time = currentDate }
+
+        // Aplicar el cambio de tiempo según el período
+        when (period) {
+            NavigationMode.MONTH_BY_MONTH -> {
+                calendar.add(Calendar.MONTH, direction)
+                navigateToDateWithFreshLoad(calendar.time, period, direction)
+            }
+            NavigationMode.YEAR_BY_YEAR -> {
+                calendar.add(Calendar.YEAR, direction)
+                navigateToDateWithFreshLoad(calendar.time, period, direction)
+            }
+            else -> {
+                // Para otros modos, usar la navegación normal
+                currentNavigationMode = period
+                navigateByTimeMode(direction)
+            }
+        }
+    }
+
     companion object {
         const val COLUMNS = 4
         private const val FETCH_NEXT_THRESHOLD = COLUMNS * 6
@@ -524,3 +1001,4 @@ abstract class VerticalCardGridFragment<ITEM> : GridFragment() {
         const val FETCH_PAGE_COUNT = FETCH_COUNT
     }
 }
+

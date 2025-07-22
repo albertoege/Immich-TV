@@ -25,44 +25,11 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:padding="16dp"
-                android:visibility="visible"
+                android:visibility="gone"
                 android:gravity="center_vertical">
 
-                <!-- Navigation Mode Selector -->
-                <TextView
-                    android:id="@+id/navigation_mode_label"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Navigation Mode: "
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:layout_marginEnd="8dp" />
-
-                <TextView
-                    android:id="@+id/navigation_mode_value"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Photo by Photo"
-                    android:textColor="#FFD700"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:layout_marginEnd="32dp" />
-
-                <!-- Spacer to push date to the right -->
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="1dp"
-                    android:layout_weight="1" />
-
-                <!-- Current Date Context -->
-                <TextView
-                    android:id="@+id/current_date_context"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:gravity="end" />
+                <!-- Elementos eliminados: navigation_mode_label, navigation_mode_value, spacer, current_date_context -->
+                <!-- Estos elementos ya no son necesarios ya que la fecha aparece en el lado derecho -->
 
             </LinearLayout>
 

@@ -158,9 +158,6 @@ open class GridFragment(val hideProgressBar: Boolean = false) : BrandedSupportFr
         val gridDock: ViewGroup = view.findViewById(R.id.browse_grid_dock)
         progressBar = gridDock.findViewById(R.id.browse_progressbar)
 
-        // Initialize navigation controls
-        navigationModeValue = view.findViewById(R.id.navigation_mode_value)
-        currentDateContext = view.findViewById(R.id.current_date_context)
 
         if (hideProgressBar) {
             progressBar?.visibility = View.GONE
